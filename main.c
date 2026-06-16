@@ -17,25 +17,31 @@ typedef struct {
 
 file_desc_status open_file(char* file_name);
 file_desc_status close_file(file_desc_status* file);
-CBOE_DATA **read_data(CBOE_DATA **p_transactions, uint32_t* transaction_count, file_desc_stauts* p_file_desc);
+CBOE_DATA **read_data(CBOE_DATA **p_transactions, uint32_t* transaction_count, file_desc_status* p_file_desc);
 
 int main(void){
     
-    CBOE_DATA **p_transactions;
+    CBOE_DATA **p_transactions = NULL;
     uint32_t transaction_count = 0;
+    
     /* OPEN FILE */
     file_desc_status file_status = open_file("SPY241Project.txt");
     if(file_status.open_status == 0){
-    printf("File opened successully\n\r");
+        printf("File opened successully\n\r");
     }
     else{
         printf("File not opened\n\r");
     }
+    
     /*READ FILE*/
+    p_transactions = read_data(p_transactions, &transaction_count, &file_status);
+    
+    printf("\nTotal transactions successfully stored in memory: %u\n\r", transaction_count);
 
     /*ANALYZE DATA*/
 
     /*PRINT SOME STATS*/
+    
     /*CLOSE FILE*/
     file_status = close_file(&file_status);
     if(file_status.open_status == 1){
@@ -44,6 +50,15 @@ int main(void){
     else{
         printf("Failed to close file descriptor\n\r");
     }
+
+    // CLEANUP WORK: Clean up your dynamic arrays before exiting main
+    if (p_transactions != NULL) {
+        for (uint32_t i = 0; i < transaction_count; i++) {
+            free(p_transactions[i]); // Free individual struct rows
+        }
+        free(p_transactions);
+    }
+
     return 0;
 }
 
@@ -86,14 +101,47 @@ CBOE_DATA **read_data(CBOE_DATA **p_transactions, uint32_t* transaction_count, f
     size_t size = 0;
     char *p_line_buffer = NULL;
 
-    
+    while((getline(&p_line_buffer, &size, p_file_desc->FD)) != -1){
+        
+        CBOE_DATA temporary_record;
 
-    /*while result is not EOF, then add a struct of the data to the **p_transactions*/
-    while((getline(&p_line_buffer, &size, p_file_desc->FD))!=-1){
-        /*Parse the data*/
+        int fields_parsed = sscanf(p_line_buffer, " %10[^,],%f,%u,%u,%u",
+                           temporary_record.date,
+                           &temporary_record.PCR,
+                           &temporary_record.SPYPV,
+                           &temporary_record.SPYCV,
+                           &temporary_record.SPYOV);
 
+        if (fields_parsed == 5) {
+            
+            uint32_t current_idx = *transaction_count;
+            uint32_t new_count = current_idx + 1;
+            
+            CBOE_DATA **temp_array = realloc(p_transactions, new_count * sizeof(CBOE_DATA *));
+            if (temp_array == NULL) {
+                printf("Error: System out of memory expanding row table.\n\r");
+                free(p_line_buffer);
+                return p_transactions;
+            }
+            p_transactions = temp_array;
+            
+            p_transactions[current_idx] = malloc(sizeof(CBOE_DATA));
+            if (p_transactions[current_idx] == NULL) {
+                printf("Error: System out of memory allocating single struct entry.\n\r");
+                free(p_line_buffer);
+                return p_transactions;
+            }
+            
+            *p_transactions[current_idx] = temporary_record;
+            
+            *transaction_count = new_count;
+            
+            printf("Stored memory matrix block for date: %s\n\r", p_transactions[current_idx]->date);
+        } else {
+            printf("Skipping non-data or malformed line...\n\r");
+        }
     }
-    /*free memory and return once loop is broken*/
+
     free(p_line_buffer);
     return p_transactions;
 }
