@@ -18,6 +18,7 @@ typedef struct {
 file_desc_status open_file(char* file_name);
 file_desc_status close_file(file_desc_status* file);
 CBOE_DATA **read_data(CBOE_DATA **p_transactions, uint32_t* transaction_count, file_desc_status* p_file_desc);
+CBOE_DATA **analyze_data(CBOE_DATA **p_transactions, uint32_t* transaction_count);
 
 int main(void){
     
@@ -144,4 +145,7 @@ CBOE_DATA **read_data(CBOE_DATA **p_transactions, uint32_t* transaction_count, f
 
     free(p_line_buffer);
     return p_transactions;
+}
+CBOE_DATA **analyze_data(CBOE_DATA **p_transactions, uint32_t* transaction_count){
+
 }
